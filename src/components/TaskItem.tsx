@@ -5,14 +5,23 @@ interface TaskItemProps {
 	tags: string[];
 	date: string;
 	isOverdue: boolean;
+	onOptionsClick?: () => void;
+	isDraggable?: boolean;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({title, tags, date, isOverdue}) => {
+const TaskItem: React.FC<TaskItemProps> = ({
+	title, 
+	tags, 
+	date, 
+	isOverdue,
+	onOptionsClick,
+	isDraggable
+}) => {
 	return (
-		<div className="flex items-center justify-between p-2 bg-gray-800 rounded">
+		<div className={`flex items-center justify-between p-2 bg-gray-800 rounded ${isDraggable ? 'cursor-move' : ''}`}>
 			<div className="flex items-center space-x-2">
 				<input type="checkbox" className="text-yellow-400"/>
-				<span>{title}</span>
+				<span className={isOverdue ? 'text-red-500' : ''}>{title}</span>
 			</div>
 			<div className="flex items-center space-x-2">
 				{tags.map((tag, index) => (
@@ -22,13 +31,21 @@ const TaskItem: React.FC<TaskItemProps> = ({title, tags, date, isOverdue}) => {
 							tag === 'Вуз' ? 'bg-yellow-600' : 'bg-gray-600'
 						}`}
 					>
-            {tag}
-          </span>
+						{tag}
+					</span>
 				))}
 				<span className={isOverdue ? 'text-red-400' : 'text-gray-400'}>
-          {date}
-        </span>
-				<button className="text-gray-400">...</button>
+					{date}
+				</span>
+				<button 
+					className="text-gray-400"
+					onClick={(e) => {
+						e.stopPropagation();
+						onOptionsClick?.();
+					}}
+				>
+					...
+				</button>
 			</div>
 		</div>
 	);
