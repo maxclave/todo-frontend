@@ -5,7 +5,11 @@ interface TaskItemProps {
 	tags: string[];
 	date: string;
 	isOverdue: boolean;
-	onOptionsClick?: () => void;
+	isCompleted?: boolean;
+	completedDate?: string;
+	isSelected?: boolean;
+	onCheckboxChange?: (checked: boolean) => void;
+	onOptionsClick?: (e: React.MouseEvent) => void;
 	isDraggable?: boolean;
 }
 
@@ -14,14 +18,29 @@ const TaskItem: React.FC<TaskItemProps> = ({
 	tags, 
 	date, 
 	isOverdue,
+	isCompleted,
+	completedDate,
+	isSelected,
+	onCheckboxChange,
 	onOptionsClick,
 	isDraggable
 }) => {
 	return (
-		<div className={`flex items-center justify-between p-2 bg-gray-800 rounded ${isDraggable ? 'cursor-move' : ''}`}>
+		<div className={`flex items-center justify-between p-2 rounded ${
+			isCompleted ? 'bg-green-900' : 'bg-gray-800'
+		} ${isDraggable ? 'cursor-move' : ''}`}>
 			<div className="flex items-center space-x-2">
-				<input type="checkbox" className="text-yellow-400"/>
-				<span className={isOverdue ? 'text-red-500' : ''}>{title}</span>
+				<input 
+					type="checkbox" 
+					className="text-yellow-400"
+					checked={isSelected || false}
+					onChange={(e) => onCheckboxChange && onCheckboxChange(e.target.checked)}
+					onClick={(e) => e.stopPropagation()}
+					disabled={isCompleted}
+				/>
+				<span className={isOverdue ? 'text-red-500' : isCompleted ? 'text-green-300' : ''}>
+					{title}
+				</span>
 			</div>
 			<div className="flex items-center space-x-2">
 				{tags.map((tag, index) => (
@@ -34,15 +53,20 @@ const TaskItem: React.FC<TaskItemProps> = ({
 						{tag}
 					</span>
 				))}
-				<span className={isOverdue ? 'text-red-400' : 'text-gray-400'}>
-					{date}
-				</span>
+				
+				{isCompleted && completedDate ? (
+					<span className="text-green-300">
+						Выполнено: {completedDate}
+					</span>
+				) : (
+					<span className={isOverdue ? 'text-red-400' : 'text-gray-400'}>
+						{date}
+					</span>
+				)}
+				
 				<button 
 					className="text-gray-400"
-					onClick={(e) => {
-						e.stopPropagation();
-						onOptionsClick?.();
-					}}
+					onClick={onOptionsClick}
 				>
 					...
 				</button>

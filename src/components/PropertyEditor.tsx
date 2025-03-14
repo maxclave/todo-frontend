@@ -7,15 +7,18 @@ interface Task {
 	date: string;
 	isOverdue: boolean;
 	message?: string;
+	completed?: boolean;
+	completedDate?: string;
 }
 
 interface PropertyEditorProps {
 	task: Task | null;
 	onClose: () => void;
 	onUpdateTask: (task: Task) => void;
+	isReadOnly?: boolean;
 }
 
-const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdateTask }) => {
+const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdateTask, isReadOnly = false }) => {
 	const [replyText, setReplyText] = useState('');
 	const [isReplying, setIsReplying] = useState(false);
 	const [taskTitle, setTaskTitle] = useState(task?.title || '');
@@ -64,7 +67,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdate
 	
 	// Добавляем функцию сохранения
 	const handleSave = () => {
-		if (task) {
+		if (task && !isReadOnly) {
 			const updatedTask = {
 				...task,
 				title: taskTitle,
@@ -101,24 +104,40 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdate
 				<div className="flex items-center justify-between mb-4">
 					<div className="flex items-center">
 						<button className="mr-2" onClick={onClose}>❌</button>
-						<input type="checkbox" className="w-4 h-4 mr-8"/>
+						<input 
+							type="checkbox" 
+							className="w-4 h-4 mr-8"
+							checked={!!task.completed}
+							disabled={true}
+						/>
 						<div className={`text-sm ${task.isOverdue ? 'text-red-500' : 'text-gray-400'}`}>
 							{task.isOverdue ? '7 дней назад, ' : ''}{task.date}
 						</div>
 					</div>
-					<button 
-						onClick={handleSave}
-						className="bg-green-600 px-3 py-1 rounded"
-					>
-						Сохранить
-					</button>
+					{!isReadOnly && (
+						<button 
+							onClick={handleSave}
+							className="bg-green-600 px-3 py-1 rounded"
+						>
+							Сохранить
+						</button>
+					)}
 				</div>
+				
+				{task.completed && task.completedDate && (
+					<div className="mb-4 text-green-400">
+						Выполнено: {task.completedDate}
+					</div>
+				)}
 				
 				<input 
 					type="text" 
-					className="text-xl font-bold mb-2 bg-transparent w-full" 
+					className={`text-xl font-bold mb-2 bg-transparent w-full ${
+						task.completed ? 'text-green-300' : ''
+					}`}
 					value={taskTitle}
 					onChange={(e) => setTaskTitle(e.target.value)}
+					readOnly={isReadOnly}
 				/>
 				
 				{/* Tags */}
@@ -140,38 +159,41 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdate
 					className="text-gray-300 mb-4 w-full bg-transparent" 
 					value={taskMessage}
 					onChange={(e) => setTaskMessage(e.target.value)}
+					readOnly={isReadOnly}
 				/>
 				
-				{/* Reply Section */}
-				{!isReplying ? (
-					<button
-						onClick={() => setIsReplying(true)}
-						className="bg-yellow-600 text-white px-4 py-2 rounded flex items-center space-x-2"
-					>
-						<span>Вы</span>
-						<span className="w-4 h-4 bg-blue-500 rounded-full"></span>
-					</button>
-				) : (
-					<div className="flex space-x-2 mb-4">
-						<input
-							type="text"
-							value={replyText}
-							onChange={(e) => setReplyText(e.target.value)}
-							placeholder="Введите ответ..."
-							className="flex-1 p-2 bg-gray-800 text-white rounded"
-						/>
+				{/* Reply Section - только для незавершенных задач */}
+				{!isReadOnly && !task.completed && (
+					!isReplying ? (
 						<button
-							onClick={() => {
-								if (replyText.trim()) {
-									setReplyText('');
-									setIsReplying(false);
-								}
-							}}
-							className="bg-blue-600 text-white px-4 py-2 rounded"
+							onClick={() => setIsReplying(true)}
+							className="bg-yellow-600 text-white px-4 py-2 rounded flex items-center space-x-2"
 						>
-							Отправить
+							<span>Вы</span>
+							<span className="w-4 h-4 bg-blue-500 rounded-full"></span>
 						</button>
-					</div>
+					) : (
+						<div className="flex space-x-2 mb-4">
+							<input
+								type="text"
+								value={replyText}
+								onChange={(e) => setReplyText(e.target.value)}
+								placeholder="Введите ответ..."
+								className="flex-1 p-2 bg-gray-800 text-white rounded"
+							/>
+							<button
+								onClick={() => {
+									if (replyText.trim()) {
+										setReplyText('');
+										setIsReplying(false);
+									}
+								}}
+								className="bg-blue-600 text-white px-4 py-2 rounded"
+							>
+								Отправить
+							</button>
+						</div>
+					)
 				)}
 				
 				{/* Reply Message (example) */}
@@ -179,7 +201,9 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({ task, onClose, onUpdate
 					<div className="flex justify-between items-center mb-2">
 						<div className="text-red-500 text-sm">26 февр.</div>
 					</div>
-					<p className="text-blue-400">Добавить подзадачу</p>
+					{!isReadOnly && (
+						<p className="text-blue-400">Добавить подзадачу</p>
+					)}
 				</div>
 			</div>
 		</div>

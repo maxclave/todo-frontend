@@ -1,5 +1,5 @@
 import TaskItem from './TaskItem';
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 interface Task {
 	id: number;
@@ -8,34 +8,36 @@ interface Task {
 	date: string;
 	isOverdue: boolean;
 	message?: string;
+	completed?: boolean;
+	completedDate?: string;
+	isSelected?: boolean;
 }
 
 interface TaskListProps {
+	tasks: Task[];
 	onSelectTask: (task: Task) => void;
 	selectedTask: Task | null;
 	onUpdateTask: (task: Task) => void;
+	onDeleteTask: (taskId: number) => void;
+	onTaskSelection?: (taskId: number, isSelected: boolean) => void;
+	isCompletedView: boolean;
 }
 
 const TaskList: React.FC<TaskListProps> = ({ 
+	tasks,
 	onSelectTask, 
 	selectedTask, 
-	onUpdateTask 
+	onUpdateTask,
+	onDeleteTask,
+	onTaskSelection,
+	isCompletedView
 }) => {
-	const [tasks, setTasks] = useState<Task[]>([]);
 	const [newTaskTitle, setNewTaskTitle] = useState('');
 	const [newTaskTags, setNewTaskTags] = useState('');
 	const [isAddingTask, setIsAddingTask] = useState(false);
 	const [draggedTask, setDraggedTask] = useState<Task | null>(null);
 	const [showOptionsFor, setShowOptionsFor] = useState<number | null>(null);
 	const [isDraggingEnabled, setIsDraggingEnabled] = useState(false);
-	
-	useEffect(() => {
-		if (selectedTask) {
-			setTasks(tasks.map(task => 
-				task.id === selectedTask.id ? selectedTask : task
-			));
-		}
-	}, [selectedTask]);
 	
 	const handleAddTask = () => {
 		if (newTaskTitle.trim()) {
@@ -51,19 +53,15 @@ const TaskList: React.FC<TaskListProps> = ({
 					minute: '2-digit'
 				}),
 				isOverdue: false,
-				message: ''
+				message: '',
+				isSelected: false
 			};
 			
-			setTasks([...tasks, newTask]);
+			onUpdateTask(newTask);
 			setNewTaskTitle('');
 			setNewTaskTags('');
 			setIsAddingTask(false);
 		}
-	};
-	
-	const handleDeleteTask = (taskId: number) => {
-		setTasks(tasks.filter(task => task.id !== taskId));
-		setShowOptionsFor(null);
 	};
 	
 	const handleDragStart = (task: Task) => {
@@ -79,14 +77,16 @@ const TaskList: React.FC<TaskListProps> = ({
 	const handleDrop = (targetTask: Task) => {
 		if (!isDraggingEnabled || !draggedTask) return;
 		
-		const newTasks = [...tasks];
 		const draggedIndex = tasks.findIndex(t => t.id === draggedTask.id);
 		const targetIndex = tasks.findIndex(t => t.id === targetTask.id);
 		
+		const newTasks = [...tasks];
 		newTasks.splice(draggedIndex, 1);
 		newTasks.splice(targetIndex, 0, draggedTask);
 		
-		setTasks(newTasks);
+		// Обновляем порядок задач через родительский компонент
+		newTasks.forEach(task => onUpdateTask(task));
+		
 		setDraggedTask(null);
 	};
 	
@@ -96,7 +96,7 @@ const TaskList: React.FC<TaskListProps> = ({
 				{tasks.map((task) => (
 					<div 
 						key={task.id} 
-						draggable={isDraggingEnabled}
+						draggable={!isCompletedView && isDraggingEnabled}
 						onDragStart={() => handleDragStart(task)}
 						onDragOver={(e) => handleDragOver(e, task)}
 						onDrop={() => handleDrop(task)}
@@ -108,8 +108,13 @@ const TaskList: React.FC<TaskListProps> = ({
 							tags={task.tags}
 							date={task.date}
 							isOverdue={task.isOverdue}
+							isCompleted={!!task.completed}
+							completedDate={task.completedDate}
+							isSelected={task.isSelected}
+							onCheckboxChange={!isCompletedView && onTaskSelection ? 
+								(checked) => onTaskSelection(task.id, checked) : undefined}
 							onOptionsClick={() => setShowOptionsFor(task.id)}
-							isDraggable={isDraggingEnabled}
+							isDraggable={!isCompletedView && isDraggingEnabled}
 						/>
 
 						{showOptionsFor === task.id && (
@@ -118,65 +123,70 @@ const TaskList: React.FC<TaskListProps> = ({
 									className="block w-full px-4 py-2 text-left hover:bg-gray-700"
 									onClick={(e) => {
 										e.stopPropagation();
-										handleDeleteTask(task.id);
+										onDeleteTask(task.id);
+										setShowOptionsFor(null);
 									}}
 								>
 									Удалить
 								</button>
-								<button 
-									className="block w-full px-4 py-2 text-left hover:bg-gray-700"
-									onClick={(e) => {
-										e.stopPropagation();
-										setIsDraggingEnabled(!isDraggingEnabled);
-										setShowOptionsFor(null);
-									}}
-								>
-									{isDraggingEnabled ? 'Завершить перемещение' : 'Перетащить'}
-								</button>
+								{!isCompletedView && (
+									<button 
+										className="block w-full px-4 py-2 text-left hover:bg-gray-700"
+										onClick={(e) => {
+											e.stopPropagation();
+											setIsDraggingEnabled(!isDraggingEnabled);
+											setShowOptionsFor(null);
+										}}
+									>
+										{isDraggingEnabled ? 'Завершить перемещение' : 'Перетащить'}
+									</button>
+								)}
 							</div>
 						)}
 					</div>
 				))}
 				
-				{isAddingTask ? (
-					<div className="space-y-2">
-						<input
-							type="text"
-							value={newTaskTitle}
-							onChange={(e) => setNewTaskTitle(e.target.value)}
-							placeholder="Название задачи"
-							className="w-full p-2 bg-gray-800 rounded"
-						/>
-						<input
-							type="text"
-							value={newTaskTags}
-							onChange={(e) => setNewTaskTags(e.target.value)}
-							placeholder="Теги (через запятую)"
-							className="w-full p-2 bg-gray-800 rounded"
-						/>
-						<div className="flex space-x-2">
-							<button 
-								onClick={handleAddTask}
-								className="bg-blue-600 px-3 py-1 rounded"
-							>
-								Добавить
-							</button>
-							<button 
-								onClick={() => setIsAddingTask(false)}
-								className="bg-gray-700 px-3 py-1 rounded"
-							>
-								Отмена
-							</button>
+				{!isCompletedView && (
+					isAddingTask ? (
+						<div className="space-y-2">
+							<input
+								type="text"
+								value={newTaskTitle}
+								onChange={(e) => setNewTaskTitle(e.target.value)}
+								placeholder="Название задачи"
+								className="w-full p-2 bg-gray-800 rounded"
+							/>
+							<input
+								type="text"
+								value={newTaskTags}
+								onChange={(e) => setNewTaskTags(e.target.value)}
+								placeholder="Теги (через запятую)"
+								className="w-full p-2 bg-gray-800 rounded"
+							/>
+							<div className="flex space-x-2">
+								<button 
+									onClick={handleAddTask}
+									className="bg-blue-600 px-3 py-1 rounded"
+								>
+									Добавить
+								</button>
+								<button 
+									onClick={() => setIsAddingTask(false)}
+									className="bg-gray-700 px-3 py-1 rounded"
+								>
+									Отмена
+								</button>
+							</div>
 						</div>
-					</div>
-				) : (
-					<button 
-						className="text-blue-400 flex items-center space-x-2"
-						onClick={() => setIsAddingTask(true)}
-					>
-						<span>+</span>
-						<span>Добавить подзадачу</span>
-					</button>
+					) : (
+						<button 
+							className="text-blue-400 flex items-center space-x-2"
+							onClick={() => setIsAddingTask(true)}
+						>
+							<span>+</span>
+							<span>Добавить подзадачу</span>
+						</button>
+					)
 				)}
 			</div>
 		</div>
